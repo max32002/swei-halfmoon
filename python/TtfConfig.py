@@ -3,10 +3,10 @@
 
 class TtfConfig():
     PROCESS_MODE = "GOTHIC"
-    PROCESS_MODE = "HALFMOON"
+    #PROCESS_MODE = "HALFMOON"
 
-    STYLE_INDEX=3
-    STYLE_ARRAY=["Black","Bold","DemiLight","Light","Medium","Regular","Thin"]
+    STYLE_INDEX = 5
+    STYLE_ARRAY = ["Black","Bold","DemiLight","Light","Medium","Regular","Thin"]
     STYLE=STYLE_ARRAY[STYLE_INDEX]
     print("Transform Mode:", PROCESS_MODE)
     print("Transform Style:", STYLE)
