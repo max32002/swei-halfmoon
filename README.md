@@ -17,7 +17,7 @@
 * 和「源泉圓體TW」的差異之一，是Regular 的字重有調整了部份的常用字，因為拔腳之後，不平衡的問題。
 
 ## 更新日誌
-[點擊此處](https://github.com/max32002/swei-halfmoon/change_log.md) 查看更新記錄。
+[點擊此處](https://github.com/max32002/swei-halfmoon/blob/master/change_log.md) 查看更新記錄。
 
 ## 下載字型
 
