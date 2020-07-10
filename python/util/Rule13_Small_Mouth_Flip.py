@@ -38,7 +38,7 @@ class Rule(Rule.Rule):
                 is_debug_mode = False
                 #is_debug_mode = True
 
-                if format_dict_array[(idx+0)%nodes_length]['code'] in skip_coordinate_rule:
+                if [format_dict_array[(idx+0)%nodes_length]['x'],format_dict_array[(idx+0)%nodes_length]['y']] in skip_coordinate:
                     continue
 
                 # [IMPORTANT]:
