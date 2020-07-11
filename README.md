@@ -1,6 +1,6 @@
 # 獅尾半月字體 Swei Half Moon
 
-獅尾半月字體基於[思源黑體](https://github.com/adobe-fonts/source-han-sans)的拔腳和加半圓改造，不圓也不方的字體，特色之一是「十」長的像忍者的手裹劍。支援简体中文、繁體中文、韓文與日文。
+獅尾半月字體基於[思源黑體](https://github.com/adobe-fonts/source-han-sans)的拔腳和加半圓改造，不圓也不方的字體，特色之一是「十」長的像忍者的手裏劍。支援简体中文、繁體中文、韓文與日文。
 
 和思源黑體一樣，支援7種的字重：
 ![字重比較](https://github.com/max32002/swei-halfmoon/raw/master/preview/compare_style.png)
