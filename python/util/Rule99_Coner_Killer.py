@@ -52,8 +52,8 @@ class Rule(Rule.Rule):
         SLIDE_10_PERCENT_MIN = 0.59
         SLIDE_10_PERCENT_MAX = 1.80
 
-        if self.config.PROCESS_MODE in ["B2"]:
-            SLIDE_10_PERCENT_MIN = 0.20
+        if self.config.PROCESS_MODE in ["B2","B4"]:
+            SLIDE_10_PERCENT_MIN = 0.10
             # PS: 不要調整太高 SLIDE_10_PERCENT_MAX, 會造成內凹，例如：uni9EBC，麼的幺的左側.
 
         # clone
@@ -110,7 +110,7 @@ class Rule(Rule.Rule):
                 #is_debug_mode = True
 
                 if is_debug_mode:
-                    debug_coordinate_list = [[565,599],[570,599],[552,599],[560,569],[696,599],[696,689]]
+                    debug_coordinate_list = [[716,729],[691,729],[592,729]]
                     if not([format_dict_array[idx]['x'],format_dict_array[idx]['y']] in debug_coordinate_list):
                         continue
 
@@ -302,8 +302,8 @@ class Rule(Rule.Rule):
                         is_match_pattern = is_match_d_base_rule
 
                 inside_stroke_flag = False
-                # B2, skip check image.
-                if not self.config.PROCESS_MODE in ["B2"]:
+                # B2,B4 skip check image.
+                if self.config.NEED_LOAD_BMP_IMAGE:
                     inside_stroke_flag,inside_stroke_dict = self.test_inside_coner(x0, y0, x1, y1, x2, y2, self.config.STROKE_WIDTH_MIN, inside_stroke_dict)
 
                 round_offset = self.config.ROUND_OFFSET
@@ -427,8 +427,8 @@ class Rule(Rule.Rule):
                     if not inside_stroke_flag:
                         need_check_join_line = True
 
-                    # B2, skip check image.
-                    if self.config.PROCESS_MODE in ["B2"]:
+                    # B2, B4 skip check image.
+                    if not self.config.NEED_LOAD_BMP_IMAGE:
                         need_check_join_line = False
 
                     if need_check_join_line:
