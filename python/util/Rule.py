@@ -781,11 +781,20 @@ class Rule():
 
                 virtal_distance = spline_util.get_distance(x1,y1,next_x,next_y)
                 x1y1_distance = spline_util.get_distance(x1,y1,int(old_code_array[1]),int(old_code_array[2]))
-                
+
                 is_virtual_dot_need_offset = False
                 #is_virtual_dot_need_offset = True
-                if x1y1_distance <= int(virtal_distance * 1.0):
-                    is_virtual_dot_need_offset = True
+                # for uni7D93 經的幺，要不要offset.
+                # virtal_distance = 29
+                # x1y1_distance = 35
+                if x1y1_distance <= int(virtal_distance * 1.3):
+                    x1y1_distance_remain = spline_util.get_distance(orig_x2,orig_y2,int(old_code_array[1]),int(old_code_array[2]))
+                    #print("orig_x2,orig_y2:",orig_x2,orig_y2)
+                    #print("x1y1_distance_remain:",x1y1_distance_remain)
+                    
+                    # 需要夠長的空間來做 offset
+                    if x1y1_distance_remain >= virtal_distance * 3:
+                        is_virtual_dot_need_offset = True
 
                 #print("virtual distance:", virtal_distance)
                 #print("x1y1 distance:", x1y1_distance)
@@ -836,11 +845,6 @@ class Rule():
         if idx >= insert_idx:
             idx += 1
 
-        # 是否要套用 2次效果。
-        # for case: uni7345 獅，的帀的一的左上角。
-        is_need_redo_current_dot = False
-
-
         MIN_DISTANCE_TO_MERGE = 10
 
         self.apply_code(format_dict_array,(idx+2)%nodes_length)
@@ -850,9 +854,10 @@ class Rule():
             if idx >= (idx+3)%nodes_length:
                 idx -= 1
             nodes_length = len(format_dict_array)
-            is_need_redo_current_dot = True
             #print("match is_need_redo_current_dot:", format_dict_array[(idx+0)%nodes_length]['code'])
         else:
+
+            # merge short edge.
             if format_dict_array[(idx+2)%nodes_length]['distance'] <= MIN_DISTANCE_TO_MERGE:
                 old_code_string = format_dict_array[(idx+2)%nodes_length]['code']
                 old_code_array = old_code_string.split(' ')
@@ -874,9 +879,6 @@ class Rule():
                 if idx > (idx+3)%nodes_length:
                     idx -=1
                 nodes_length = len(format_dict_array)
-                is_need_redo_current_dot = True
-
-
 
         self.apply_code(format_dict_array,(idx+0)%nodes_length)
         if format_dict_array[(idx+0)%nodes_length]['distance'] <= 0:
@@ -889,8 +891,39 @@ class Rule():
             # dot+1 is our generated position. skip to transform.
             # to avoid same code apply twice.
 
-            # 一般情況，產生出來的點，不用再套效果，但有例外，就是有之後的點被合併時，需要使用產生出來的點。
-            if not is_need_redo_current_dot:
+            # merge short edge.
+            if format_dict_array[(idx+0)%nodes_length]['distance'] <= MIN_DISTANCE_TO_MERGE:
+                old_code_string = format_dict_array[(idx+0)%nodes_length]['code']
+                old_code_array = old_code_string.split(' ')
+                new_x = str(format_dict_array[(idx+1)%nodes_length]['x'])
+                new_y = str(format_dict_array[(idx+1)%nodes_length]['y'])
+                if format_dict_array[(idx+0)%nodes_length]['t']=='c':
+                    old_code_array[5] = new_x
+                    old_code_array[6] = new_y
+                else:
+                    # l
+                    old_code_array[1] = new_x
+                    old_code_array[2] = new_y
+                new_code = ' '.join(old_code_array)
+                # only need update code, let formater to re-compute.
+                format_dict_array[(idx+0)%nodes_length]['code'] = new_code
+
+                del format_dict_array[(idx+1)%nodes_length]
+
+                if idx >= (idx+1)%nodes_length:
+                    idx -= 1
+                nodes_length = len(format_dict_array)
+
+            # 己忘記什麼情況下需要使用到這一段code, 
+            # 但加了之後，會讓 uni7345 獅的帀裡的一個轉角沒套用到效果.
+            
+            # [TODO]:找到為什麼加這段code,是 uni7D93 經的幺，
+            # 在「沒有」做 offset 的情況下，會發生一連串的重覆套用，
+            # 因為第一點產生完是 clockwise, 第二點原本是 counter clockwise,
+            # Rule5/Rule99, 會先用 virtual dot 做比對，會變成銳角。
+            # 解法，是遇到第二段edge=='c'時，clockwise + counter clockwise, 
+            # 這個情況下，做skip_coordinate_rule.append() 
+            if False:
                 nodes_length = len(format_dict_array)
                 generated_code = format_dict_array[(idx+1)%nodes_length]['code']
                 #print("generated_code+1 to rule:", generated_code)

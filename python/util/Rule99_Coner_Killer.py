@@ -110,7 +110,7 @@ class Rule(Rule.Rule):
                 #is_debug_mode = True
 
                 if is_debug_mode:
-                    debug_coordinate_list = [[716,729],[691,729],[592,729]]
+                    debug_coordinate_list = [[63,465]]
                     if not([format_dict_array[idx]['x'],format_dict_array[idx]['y']] in debug_coordinate_list):
                         continue
 
@@ -176,12 +176,9 @@ class Rule(Rule.Rule):
                             nodes_length = len(format_dict_array)
 
                             check_first_point = True
-
-                            # check result again.
-                            self.apply_code(format_dict_array,(idx+0)%nodes_length)
-                            if format_dict_array[(idx+0)%nodes_length]['distance'] <= RULE_MIN_DISTANCE_REQUIREMENT:
-                                fail_code = 121
-                                is_match_pattern = False
+                            redo_travel=True
+                            resume_idx = -1
+                            break
 
                     is_nodes_enough_to_merge = True
                     if nodes_length <= 3:
@@ -400,7 +397,7 @@ class Rule(Rule.Rule):
                             if format_dict_array[(idx+1)%nodes_length]['x2']==format_dict_array[(idx+1)%nodes_length]['x1'] and format_dict_array[(idx+1)%nodes_length]['y2']==format_dict_array[(idx+1)%nodes_length]['y1']:
                                 pass
                             else:
-                                # 這個情況，滿特別的，就允許例外看看。
+                                # 這個「不相等」的情況，滿特別，允許例外。
                                 x0 = format_dict_array[(idx+0)%nodes_length]['x']
                                 y0 = format_dict_array[(idx+0)%nodes_length]['y']
                         x1 = format_dict_array[(idx+1)%nodes_length]['x']
@@ -410,7 +407,7 @@ class Rule(Rule.Rule):
                             if format_dict_array[(idx+2)%nodes_length]['x2']==format_dict_array[(idx+2)%nodes_length]['x1'] and format_dict_array[(idx+2)%nodes_length]['y2']==format_dict_array[(idx+2)%nodes_length]['y1']:
                                 pass
                             else:
-                                # 這個情況，滿特別的，就允許例外看看。
+                                # 這個「不相等」的情況，滿特別，允許例外。
                                 x2 = format_dict_array[(idx+2)%nodes_length]['x']
                                 y2 = format_dict_array[(idx+2)%nodes_length]['y']
                         
