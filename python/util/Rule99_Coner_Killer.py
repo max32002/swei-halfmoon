@@ -52,7 +52,7 @@ class Rule(Rule.Rule):
         SLIDE_10_PERCENT_MIN = 0.59
         SLIDE_10_PERCENT_MAX = 1.80
 
-        if self.config.PROCESS_MODE in ["B2","B4"]:
+        if self.config.PROCESS_MODE in ["B2","B4","NUT8"]:
             SLIDE_10_PERCENT_MIN = 0.10
             # PS: 不要調整太高 SLIDE_10_PERCENT_MAX, 會造成內凹，例如：uni9EBC，麼的幺的左側.
 
@@ -106,6 +106,21 @@ class Rule(Rule.Rule):
                         pass
                     continue
 
+                # for uni6529 攩，的黑的點, 問題是 clockwise + counter clockwise ，解法之一是直接停掉Rule#99.
+                # 
+                check_idx_1_code = True
+                # 有一個例外，不要檢查這一個Rule, 就是 nut8, 因為 nut8 裡的 Rule#1 會和 Rule#99 的點共用.
+                # ex: uni5E3D 帽的最右上角。
+                if self.config.PROCESS_MODE in ["NUT8"]:
+                    check_idx_1_code = False
+                if check_idx_1_code:
+                    if format_dict_array[(idx+1)%nodes_length]['code'] in skip_coordinate_rule:
+                        if is_debug_mode:
+                            print("match skip skip_coordinate_rule +1:",format_dict_array[(idx+1)%nodes_length]['code'])
+                            pass
+                        continue
+
+
                 is_debug_mode = False
                 #is_debug_mode = True
 
@@ -130,12 +145,13 @@ class Rule(Rule.Rule):
                 y2 = format_dict_array[(idx+2)%nodes_length]['y']
 
                 # use more close coordinate.
-                if format_dict_array[(idx+0)%nodes_length]['code']=='c':
-                    x0 = format_dict_array[(idx+0)%nodes_length]['x2']
-                    y0 = format_dict_array[(idx+0)%nodes_length]['y2']
-                if format_dict_array[(idx+2)%nodes_length]['code']=='c':
-                    x2 = format_dict_array[(idx+0)%nodes_length]['x1']
-                    y2 = format_dict_array[(idx+0)%nodes_length]['y1']
+                # PS: 下面這2個if, 在很多之前的版本，都沒有被執行，效果也很好，也許可以直接註解掉。
+                if format_dict_array[(idx+1)%nodes_length]['t']=='c':
+                    x0 = format_dict_array[(idx+1)%nodes_length]['x2']
+                    y0 = format_dict_array[(idx+1)%nodes_length]['y2']
+                if format_dict_array[(idx+2)%nodes_length]['t']=='c':
+                    x2 = format_dict_array[(idx+2)%nodes_length]['x1']
+                    y2 = format_dict_array[(idx+2)%nodes_length]['y1']
 
                 previous_x,previous_y=0,0
                 next_x,next_y=0,0
@@ -298,10 +314,43 @@ class Rule(Rule.Rule):
                         is_match_d_base_rule, fail_code = self.going_xd_down(format_dict_array,idx)
                         is_match_pattern = is_match_d_base_rule
 
+                # for RAINBOW
+                if self.config.PROCESS_MODE in ["RAINBOW"]:
+                    fail_code = 133
+                    #print("before is_match_pattern:", is_match_pattern)
+                    if is_match_pattern:
+                        is_match_d_base_rule, fail_code = self.going_rainbow_up(format_dict_array,idx)
+                        is_match_pattern = is_match_d_base_rule
+                    #print("after is_match_pattern:", is_match_pattern)
+
                 inside_stroke_flag = False
-                # B2,B4 skip check image.
-                if self.config.NEED_LOAD_BMP_IMAGE:
-                    inside_stroke_flag,inside_stroke_dict = self.test_inside_coner(x0, y0, x1, y1, x2, y2, self.config.STROKE_WIDTH_MIN, inside_stroke_dict)
+                if is_match_pattern:
+                    # B2,B4 skip check image.
+                    if self.config.NEED_LOAD_BMP_IMAGE:
+                        inside_stroke_flag,inside_stroke_dict = self.test_inside_coner(x0, y0, x1, y1, x2, y2, self.config.STROKE_WIDTH_MIN, inside_stroke_dict)
+
+                # for NUT8
+                # 遇到黑色部分，只有長線條才套用效果。
+                if is_match_pattern:
+                    if self.config.PROCESS_MODE in ["NUT8"]:
+                        if inside_stroke_flag:
+                            # for uni87BA 螺的虫的丶，必需>=1.4, 不然會套到效果. 
+                            remain_rate = 1.4   # for black mode.
+                            if not black_mode:
+                                # for uni9ED1 黑裡的點，希望可以保留，不套用效果。
+                                remain_rate = 1.7   # for black mode.
+                            if format_dict_array[(idx+0)%nodes_length]['distance'] <= self.config.OUTSIDE_ROUND_OFFSET * remain_rate:
+                                fail_code = 1341
+                                is_match_pattern = False
+                            if format_dict_array[(idx+1)%nodes_length]['distance'] <= self.config.OUTSIDE_ROUND_OFFSET * remain_rate:
+                                fail_code = 1342
+                                is_match_pattern = False
+                        else:
+                            is_match_pattern = False
+
+                # for 攩裡的黑裡的點。
+                if is_match_pattern:
+                    pass
 
                 round_offset = self.config.ROUND_OFFSET
                 if not inside_stroke_flag:
@@ -468,7 +517,11 @@ class Rule(Rule.Rule):
                     skip_coordinate_rule.append(generated_code)
 
                     # make coner curve
-                    format_dict_array, previous_x, previous_y, next_x, next_y = self.make_coner_curve(round_offset,format_dict_array,idx,skip_coordinate_rule)
+                    coner_mode = "CURVE"
+                    if self.config.PROCESS_MODE in ["NUT8"]:
+                        coner_mode = "STRAIGHT"
+
+                    format_dict_array, previous_x, previous_y, next_x, next_y = self.make_coner_curve(round_offset,format_dict_array,idx,skip_coordinate_rule,coner_mode=coner_mode)
 
                     # cache transformed nodes.
                     # we generated nodes

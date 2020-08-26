@@ -31,6 +31,7 @@ class Rule(Rule.Rule):
         #print("orig nodes_length:", len(spline_dict['dots']))
         #print("format nodes_length:", nodes_length)
         #print("resume_idx:", resume_idx)
+        #print("Welcome to Rule#2")
 
         rule_need_lines = 4
         fail_code = -1
@@ -104,6 +105,19 @@ class Rule(Rule.Rule):
                     is_match_pattern = False
                     if format_dict_array[(idx+2)%nodes_length]['t'] == 'l':
                         is_match_pattern = True
+
+                # because Rule#2 run before Rule#1, but this case should apply Rule#1 instead of Rule#2
+                # special case for uni9750 靐 的雷的一
+                # for prefer 橫線.(雖然也會match直線)
+                if nodes_length == 4:
+                    if is_match_pattern:
+                        if format_dict_array[(idx+1)%nodes_length]['distance'] > format_dict_array[(idx+0)%nodes_length]['distance']:
+                            if format_dict_array[(idx+3)%nodes_length]['distance'] > format_dict_array[(idx+2)%nodes_length]['distance']:
+                                if format_dict_array[(idx+1)%nodes_length]['distance'] > format_dict_array[(idx+2)%nodes_length]['distance']:
+                                    if format_dict_array[(idx+3)%nodes_length]['distance'] > format_dict_array[(idx+0)%nodes_length]['distance']:
+                                        if format_dict_array[(idx+1)%nodes_length]['distance'] > self.config.ROUND_OFFSET:
+                                            # pass to let Rule#1 match.
+                                            break
 
                 if is_match_pattern:
                     fail_code = 200
@@ -333,8 +347,24 @@ class Rule(Rule.Rule):
                         is_match_d_base_rule, fail_code = self.going_xd_down(format_dict_array,idx)
                         is_goto_apply_round = is_match_d_base_rule
 
+                    # for RAINBOW
+                    if self.config.PROCESS_MODE in ["RAINBOW"]:
+                        is_match_d_base_rule, fail_code = self.going_rainbow_up(format_dict_array,idx)
+                        is_goto_apply_round = is_match_d_base_rule
+
+                    # NUT8, alway do nothing but record the history.
+                    if self.config.PROCESS_MODE in ["NUT8"]:
+                        is_goto_apply_round = False
+                        generated_code = format_dict_array[(idx+1)%nodes_length]['code']
+                        skip_coordinate_rule.append(generated_code)
+
                     if is_goto_apply_round:
-                        center_x,center_y = self.apply_round_transform(format_dict_array,idx)
+                        center_x,center_y = -9999,-9999
+                        #print("self.config.PROCESS_MODE:", self.config.PROCESS_MODE)
+                        if not self.config.PROCESS_MODE in ["3TSANS"]:
+                            center_x,center_y = self.apply_round_transform(format_dict_array,idx)
+                        else:
+                            center_x,center_y = self.apply_3t_transform(format_dict_array,idx,skip_coordinate_rule)
                         #print("center_x,center_y:",center_x,center_y)
                         
                         # we generated nodes

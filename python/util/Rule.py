@@ -602,7 +602,7 @@ class Rule():
         return clockwise
 
     # for triangle version, ex: rule#5
-    def make_coner_curve(self,round_offset,format_dict_array,idx,skip_coordinate_rule):
+    def make_coner_curve(self,round_offset,format_dict_array,idx,skip_coordinate_rule,coner_mode="CURVE"):
         nodes_length = len(format_dict_array)
 
         x0 = format_dict_array[(idx+0)%nodes_length]['x']
@@ -679,6 +679,8 @@ class Rule():
         format_dict_array[(idx+1)%nodes_length]['x']= previous_x
         format_dict_array[(idx+1)%nodes_length]['y']= previous_y
 
+        is_middle_dot_in_skip_rule = False
+
         old_code_string = format_dict_array[(idx+1)%nodes_length]['code']
         old_code_array = old_code_string.split(' ')
         
@@ -734,6 +736,7 @@ class Rule():
         if old_code_string in skip_coordinate_rule:
             #print("+1 old code in rule:", old_code_string)
             #print("+1 update as new code in rule:", new_code)
+            is_middle_dot_in_skip_rule = True
             skip_coordinate_rule.append(new_code)
 
         # update [next next curve]
@@ -751,6 +754,18 @@ class Rule():
 
             if new_distance <= 40:
                 is_convert_to_l = True
+            else:
+                if new_distance <= 200:
+                    # PS: 把太長的曲線變直線，會變超級怪。
+                    # PS: uni9773 的斤，會剛好被變成直線，筆畫會變粗。
+
+                    # for fix uni7729 的幺內縮。
+                    # PS: 應該有其他更好解法，暫時先用 workaround.
+                    slide_percent_next = spline_util.slide_percent(format_dict_array[(idx+1)%nodes_length]['x'],format_dict_array[(idx+1)%nodes_length]['y'],format_dict_array[(idx+2)%nodes_length]['x'],format_dict_array[(idx+2)%nodes_length]['y'],format_dict_array[(idx+3)%nodes_length]['x'],format_dict_array[(idx+3)%nodes_length]['y'])
+                    #print("slide_percent_next:", slide_percent_next)
+                    #print("slide_percent_next data:", slide_percent_next)
+                    if slide_percent_next >= 1.990:
+                        is_convert_to_l = True
 
             #print("old distance:", format_dict_array[(idx+1)%nodes_length]['distance'])
             #print("new distance:", new_distance)
@@ -782,30 +797,34 @@ class Rule():
                     print("orig xy3:", orig_x3, orig_y3)
                     print("xy2 offset:", x2_offset, y2_offset)
 
-                virtal_distance = spline_util.get_distance(x1,y1,next_x,next_y)
-                x1y1_distance = spline_util.get_distance(x1,y1,int(old_code_array[1]),int(old_code_array[2]))
+                offset_distance = spline_util.get_distance(x1,y1,next_x,next_y)
+                virtual_x1y1_distance = spline_util.get_distance(x1,y1,int(old_code_array[1]),int(old_code_array[2]))
 
                 is_virtual_dot_need_offset = False
                 #is_virtual_dot_need_offset = True
                 # for uni7D93 經的幺，要不要offset.
-                # (regular) virtal_distance = 29
-                # (regular) x1y1_distance = 35
-                # (medium) virtal_distance = 29
-                # (medium) x1y1_distance = 39
-                if x1y1_distance <= int(virtal_distance * 1.0):
+                # (regular) offset_distance = 29
+                # (regular) virtual_x1y1_distance = 35
+                # (medium) offset_distance = 29
+                # (medium) virtual_x1y1_distance = 39
+                if virtual_x1y1_distance <= int(offset_distance * 1.0):
                     is_virtual_dot_need_offset = True
                 else:
-                    # 不確定這個解法，會不會造成再下一個點造成內凹。
-                    x1y1_distance_remain = spline_util.get_distance(orig_x2,orig_y2,int(old_code_array[1]),int(old_code_array[2]))
-                    #print("orig_x2,orig_y2:",orig_x2,orig_y2)
-                    #print("x1y1_distance_remain:",x1y1_distance_remain)
-                    
-                    # 需要夠長的空間，都做 offset
-                    if x1y1_distance_remain >= virtal_distance * 3:
-                        is_virtual_dot_need_offset = True
+                    if virtual_x1y1_distance <= int(offset_distance * 2.0):
+                        # 不確定這個解法，會不會造成再下一個點造成內凹。
+                        # virtual_x1y1_distance_remain: virtual 點到下一個實體點的長度
+                        virtual_x1y1_distance_remain = spline_util.get_distance(orig_x2,orig_y2,int(old_code_array[1]),int(old_code_array[2]))
+                        #print("orig_x2,orig_y2:",orig_x2,orig_y2)
+                        #print("virtual_x1y1_distance_remain:",virtual_x1y1_distance_remain)
+                        
+                        # 需要夠長的空間，都做 offset
+                        # PS: 如果 virtual_x1y1_distance_remain 夠長都offset, 會造成筆畫變細。
+                        #     參考看看 uni9773,靳的斤.
+                        if virtual_x1y1_distance_remain >= offset_distance * 3:
+                            is_virtual_dot_need_offset = True
 
-                #print("virtual distance:", virtal_distance)
-                #print("x1y1 distance:", x1y1_distance)
+                #print("virtual distance:", offset_distance)
+                #print("x1y1 distance:", virtual_x1y1_distance)
                 #print("is_virtual_dot_need_offset:",is_virtual_dot_need_offset)
                 if is_virtual_dot_need_offset:
                     # 套用修改前，如果 x1,y1=x2,y2, 順便調整另一組。
@@ -833,21 +852,31 @@ class Rule():
         #new_code = ' %d %d %d %d %d %d c 1\n' % (x1, y1, x1, y1, next_x, next_y)
 
         # soft version
-        new_code = ' %d %d %d %d %d %d c 1\n' % (previous_recenter_x, previous_recenter_y, next_recenter_x, next_recenter_y, next_x, next_y)
+        
+        new_code = ' %d %d l 1\n' % (next_x, next_y)
+        if coner_mode == "CURVE":
+            new_code = ' %d %d %d %d %d %d c 1\n' % (previous_recenter_x, previous_recenter_y, next_recenter_x, next_recenter_y, next_x, next_y)
 
         dot_dict={}
-        dot_dict['x1']=previous_recenter_x
-        dot_dict['y1']=previous_recenter_y
-        dot_dict['x2']=next_recenter_x
-        dot_dict['y2']=next_recenter_y
+        dot_dict['t']='l'
+        if coner_mode == "CURVE":
+            dot_dict['x1']=previous_recenter_x
+            dot_dict['y1']=previous_recenter_y
+            dot_dict['x2']=next_recenter_x
+            dot_dict['y2']=next_recenter_y
+            dot_dict['t']='c'
         dot_dict['x']=next_x
         dot_dict['y']=next_y
-        dot_dict['t']='c'
         dot_dict['code']=new_code
 
         insert_idx = (idx+2)%nodes_length
         format_dict_array.insert(insert_idx, dot_dict)
         nodes_length = len(format_dict_array)
+
+        # for fix uni5E3D 帽的冒的右上角，因為套用 coner curve 後，原本 rule#2 的 skip recode 被洗掉。
+        if is_middle_dot_in_skip_rule:
+            skip_coordinate_rule.append(new_code)
+            
 
         # 因為較短邊 <= round_offset, 需要合併節點。
         if idx >= insert_idx:
@@ -867,6 +896,9 @@ class Rule():
 
             # merge short edge.
             if format_dict_array[(idx+2)%nodes_length]['distance'] <= MIN_DISTANCE_TO_MERGE:
+                #print("extend +2 to +3.")
+                #print("old +2 code:", format_dict_array[(idx+2)%nodes_length]['code'])
+                #print("old +3 code:", format_dict_array[(idx+3)%nodes_length]['code'])
                 old_code_string = format_dict_array[(idx+2)%nodes_length]['code']
                 old_code_array = old_code_string.split(' ')
                 new_x = str(format_dict_array[(idx+3)%nodes_length]['x'])
@@ -881,12 +913,14 @@ class Rule():
                 new_code = ' '.join(old_code_array)
                 # only need update code, let formater to re-compute.
                 format_dict_array[(idx+2)%nodes_length]['code'] = new_code
+                #print("new +2 code:", format_dict_array[(idx+2)%nodes_length]['code'])
 
                 del format_dict_array[(idx+3)%nodes_length]
 
                 if idx > (idx+3)%nodes_length:
                     idx -=1
                 nodes_length = len(format_dict_array)
+                self.apply_code(format_dict_array,(idx+2)%nodes_length)
 
         self.apply_code(format_dict_array,(idx+0)%nodes_length)
         if format_dict_array[(idx+0)%nodes_length]['distance'] <= 0:
@@ -901,20 +935,9 @@ class Rule():
 
             # merge short edge.
             if format_dict_array[(idx+0)%nodes_length]['distance'] <= MIN_DISTANCE_TO_MERGE:
-                old_code_string = format_dict_array[(idx+0)%nodes_length]['code']
-                old_code_array = old_code_string.split(' ')
-                new_x = str(format_dict_array[(idx+1)%nodes_length]['x'])
-                new_y = str(format_dict_array[(idx+1)%nodes_length]['y'])
-                if format_dict_array[(idx+0)%nodes_length]['t']=='c':
-                    old_code_array[5] = new_x
-                    old_code_array[6] = new_y
-                else:
-                    # l
-                    old_code_array[1] = new_x
-                    old_code_array[2] = new_y
-                new_code = ' '.join(old_code_array)
-                # only need update code, let formater to re-compute.
-                format_dict_array[(idx+0)%nodes_length]['code'] = new_code
+                #print("extend +1 to +0.")
+                #print("old +0 code:", format_dict_array[(idx+0)%nodes_length]['code'])
+                #print("old +1 code:", format_dict_array[(idx+1)%nodes_length]['code'])
 
                 del format_dict_array[(idx+1)%nodes_length]
 
@@ -924,11 +947,14 @@ class Rule():
 
             # 己忘記什麼情況下需要使用到這一段code, 
             # 但加了之後，會讓 uni7345 獅的帀裡的一個轉角沒套用到效果.
+            # 目前先設為False不跑，不跑也有問題，就會可能會多套用效果。
             
             # [TODO]:找到為什麼加這段code,是 uni7D93 經的幺，
             # 在「沒有」做 offset 的情況下，會發生一連串的重覆套用，
+            
             # 因為第一點產生完是 clockwise, 第二點原本是 counter clockwise,
             # Rule5/Rule99, 會先用 virtual dot 做比對，會變成銳角。
+            
             # 解法，是遇到第二段edge=='c'時，clockwise + counter clockwise, 
             # 這個情況下，做skip_coordinate_rule.append() 
             if False:
@@ -1340,92 +1366,117 @@ class Rule():
 
         return center_x,center_y
 
-    def rule_test(self,format_dict_array,idx,rule_no,inside_stroke_dict=None):
-        # compare direction
-        # start to compare.
-        is_match_pattern = True
+
+    # for rectangel version. ex: rule#1,#2,#3
+    def apply_3t_transform(self,format_dict_array,idx,skip_coordinate_rule):
         nodes_length = len(format_dict_array)
 
-        if rule_no == 16:
-            # 這個參數，不要與其他參數共用，以避免其他參數一調整，這一個值就消失了。
-            TAIL_LENGTH_MIN = 35
+        center_x = int((format_dict_array[(idx+1)%nodes_length]['x']+format_dict_array[(idx+2)%nodes_length]['x'])/2)
+        center_y = int((format_dict_array[(idx+1)%nodes_length]['y']+format_dict_array[(idx+2)%nodes_length]['y'])/2)
+        
+        x0 = format_dict_array[(idx+0)%nodes_length]['x']
+        y0 = format_dict_array[(idx+0)%nodes_length]['y']
+        
+        x1 = format_dict_array[(idx+1)%nodes_length]['x']
+        y1 = format_dict_array[(idx+1)%nodes_length]['y']
+        
+        x2 = format_dict_array[(idx+2)%nodes_length]['x']
+        y2 = format_dict_array[(idx+2)%nodes_length]['y']
+        
+        x3 = format_dict_array[(idx+3)%nodes_length]['x']
+        y3 = format_dict_array[(idx+3)%nodes_length]['y']
 
-            # for case: .44730 「饞」
-            #0 : values for rule16:  874 418 l 2 -( 43 )
-            #1 : values for rule16:  891 418 895 423 898 454 c 1 -( 53 )
-            #2 : values for rule16:  949 437 l 1 -( 92 )
-            #3 : values for rule16:  945 388 927 373 882 373 c 2 -( 101 )
-            if is_match_pattern:
-                fail_code = 100
-                is_match_pattern = False
-                if format_dict_array[(idx+1)%nodes_length]['t'] == 'c':
-                    if format_dict_array[(idx+2)%nodes_length]['t'] == 'l':
-                        if format_dict_array[(idx+3)%nodes_length]['t'] == 'c':
-                            if format_dict_array[(idx+1)%nodes_length]['match_stroke_width']:
-                                is_match_pattern = True
+        # keep original value.
+        orig_x0 = x0
+        orig_y0 = y0
+        orig_x3 = x3
+        orig_y3 = y3
 
-            # 2個邊不要太短
-            if is_match_pattern:
-                fail_code = 220
-                is_match_pattern = False
-                if format_dict_array[(idx+0)%nodes_length]['distance'] > TAIL_LENGTH_MIN:
-                    if format_dict_array[(idx+2)%nodes_length]['distance'] > TAIL_LENGTH_MIN:
-                        is_match_pattern = True
+        # PS: in this rule, the value is fixed.
+        #     but in Rule5, this value will be change.
+        orig_x2 = x2
+        orig_y2 = y2
 
-            # compare direction
-            if is_match_pattern:
-                fail_code = 300
-                #print(idx,"debug rule3:",format_dict_array[idx]['code'])
-                is_match_pattern = False
-                if format_dict_array[(idx+0)%nodes_length]['y_direction'] != 0:
-                    if format_dict_array[(idx+0)%nodes_length]['y_direction'] == -1 * format_dict_array[(idx+2)%nodes_length]['y_direction']:
-                        if format_dict_array[(idx+0)%nodes_length]['x_direction'] != 0:
-                            if format_dict_array[(idx+0)%nodes_length]['x_direction'] == -1 * format_dict_array[(idx+2)%nodes_length]['x_direction']:
-                                is_match_pattern = True
+        # 使用較短的邊。
+        round_length_1 = self.config.ROUND_OFFSET
+        if format_dict_array[(idx+0)%nodes_length]['distance'] < self.config.ROUND_OFFSET:
+            round_length_1 = format_dict_array[(idx+0)%nodes_length]['distance']
+        round_length_2 = self.config.ROUND_OFFSET
+        if format_dict_array[(idx+2)%nodes_length]['distance'] < self.config.ROUND_OFFSET:
+            round_length_2 = format_dict_array[(idx+2)%nodes_length]['distance']
 
-            # compare direction
-            # for case: .31845. 「糸」系列都會遇到，暫時畫的很醜，日後再想想如何處理。
-            if is_match_pattern:
-                fail_code = 310
-                if format_dict_array[(idx+0)%nodes_length]['x_direction'] < 0:
-                    is_match_pattern = False
+        # use more close coordinate.
+        if format_dict_array[(idx+1)%nodes_length]['t']=='c':
+            x_from = x0
+            y_from = y0
+            x_center = format_dict_array[(idx+1)%nodes_length]['x2']
+            y_center = format_dict_array[(idx+1)%nodes_length]['y2']
+            x0,y0 = self.compute_curve_new_xy(x_from,y_from,x_center,y_center,x1,y1,round_length_1)
+        
+        if format_dict_array[(idx+3)%nodes_length]['t']=='c':
+            x_from = x3
+            y_from = y3
+            x_center = format_dict_array[(idx+3)%nodes_length]['x1']
+            y_center = format_dict_array[(idx+3)%nodes_length]['y1']
+            #print("x_from,y_from,x_center,y_center,x2,y2,round_length_2:",x_from,y_from,x_center,y_center,x2,y2,round_length_2)
+            x3,y3 = self.compute_curve_new_xy(x_from,y_from,x_center,y_center,x2,y2,round_length_2)
+            #print("x3,y3:",x3,y3)
 
-            # check from bmp file.
-            if is_match_pattern:
-                is_match_pattern = False
-                fail_code = 500
+        new_x1, new_y1 = spline_util.two_point_extend(x0,y0,x1,y1,-1 * round_length_1)
+        new_x2, new_y2 = spline_util.two_point_extend(x3,y3,x2,y2,-1 * round_length_2)
 
-                if not inside_stroke_dict is None:
-                    bmp_x1 = format_dict_array[(idx+0)%nodes_length]['x']
-                    bmp_y1 = format_dict_array[(idx+0)%nodes_length]['y']
-                    bmp_x2 = format_dict_array[(idx+1)%nodes_length]['x']
-                    bmp_y2 = format_dict_array[(idx+1)%nodes_length]['y']
-                    bmp_x3 = format_dict_array[(idx+2)%nodes_length]['x']
-                    bmp_y3 = format_dict_array[(idx+2)%nodes_length]['y']
-                    bmp_x4 = format_dict_array[(idx+3)%nodes_length]['x']
-                    bmp_y4 = format_dict_array[(idx+3)%nodes_length]['y']
-                    
-                    # 精簡的比對，會出錯，例如「緫」、「縃」、「繳」的方。「解」的刀。「繫」的山。
-                    #bmp_x2 = bmp_x1 + (5 * format_dict_array[(idx+0)%nodes_length]['x_direction'])
-                    #bmp_x3 = bmp_x4 + (5 * format_dict_array[(idx+0)%nodes_length]['x_direction'])
-                    #bmp_y2 = bmp_y1 + (5 * format_dict_array[(idx+0)%nodes_length]['y_direction'])
-                    #bmp_y3 = bmp_y4 + (5 * format_dict_array[(idx+0)%nodes_length]['y_direction'])
-                    
-                    # full rectangle compare.
-                    #inside_stroke_flag = self.is_inside_stroke(bmp_x1, bmp_y1, bmp_x2, bmp_y2, bmp_x3, bmp_y3, bmp_x4, bmp_y4)
 
-                    # compact triangle compare, 
-                    # allow one coner match to continue
-                    inside_stroke_flag2 = False
-                    inside_stroke_flag1,inside_stroke_dict = self.test_inside_coner(bmp_x1, bmp_y1, bmp_x2, bmp_y2, bmp_x3, bmp_y3, self.config.STROKE_MIN, inside_stroke_dict)
-                    if not inside_stroke_flag1:
-                        # test next coner
-                        inside_stroke_flag2,inside_stroke_dict = self.test_inside_coner(bmp_x2, bmp_y2, bmp_x3, bmp_y3, bmp_x4, bmp_y4, self.config.STROKE_MIN, inside_stroke_dict)
+        new_center_x = int((new_x1 + new_x2) / 2)
+        new_center_y = int((new_y1 + new_y2) / 2)
 
-                    if inside_stroke_flag1 or inside_stroke_flag2:
-                        is_match_pattern = True
+        dot1_x = int((new_center_x+new_x1) / 2)
+        dot1_y = int((new_center_y+new_y1) / 2)
 
-        return is_match_pattern, fail_code
+        dot3_x = int((new_center_x+new_x2) / 2)
+        dot3_y = int((new_center_y+new_y2) / 2)
+
+        # convert to l
+        new_code = ' %d %d l 1\n' % (x2, y2)
+        dot_dict={}
+        dot_dict['t']='l'
+        dot_dict['code']=new_code
+        format_dict_array[(idx+2)%nodes_length]=dot_dict
+        self.apply_code(format_dict_array,(idx+2)%nodes_length)
+
+        # append new #1
+        new_code = ' %d %d l 1\n' % (dot3_x, dot3_y)
+        dot_dict={}
+        dot_dict['x']=dot3_x
+        dot_dict['y']=dot3_y
+        dot_dict['t']='l'
+        dot_dict['code']=new_code
+        target_index = (idx+2)%nodes_length
+        format_dict_array.insert(target_index,dot_dict)
+        skip_coordinate_rule.append(new_code)
+
+        # append new #2
+        new_code = ' %d %d l 1\n' % (center_x, center_y)
+        dot_dict={}
+        dot_dict['x']=center_x
+        dot_dict['y']=center_y
+        dot_dict['t']='l'
+        dot_dict['code']=new_code
+        target_index = (idx+2)%nodes_length
+        format_dict_array.insert(target_index,dot_dict)
+        skip_coordinate_rule.append(new_code)
+
+        # append new #3
+        new_code = ' %d %d l 1\n' % (dot1_x, dot1_y)
+        dot_dict={}
+        dot_dict['x']=dot1_x
+        dot_dict['y']=dot1_y
+        dot_dict['t']='l'
+        dot_dict['code']=new_code
+        target_index = (idx+2)%nodes_length
+        format_dict_array.insert(target_index,dot_dict)
+        skip_coordinate_rule.append(new_code)
+
+        return center_x,center_y
     
 
     # PS: 數學沒學好，所以開始亂寫，這應該是用函數來處理的。
@@ -1586,6 +1637,7 @@ class Rule():
 
         nodes_length = len(format_dict_array)
 
+        '''
         if not is_match_pattern:
             # | sharp.
             if format_dict_array[(idx+0)%nodes_length]['x_equal_fuzzy']:
@@ -1601,14 +1653,23 @@ class Rule():
                     fail_code = 2202
                     is_match_pattern = True
                     going_down = True
+        '''
 
         if not is_match_pattern:
             # \ sharp. go up.
             # / sharp. go down.
             if format_dict_array[(idx+0)%nodes_length]['y_direction'] < 0:
-                fail_code = 2203
-                is_match_pattern = True
-                going_down = True
+                # 第一條，雖然向下走，但接近水平線。
+                if format_dict_array[(idx+0)%nodes_length]['y_equal_fuzzy']:
+                    # - sharp.
+                    if format_dict_array[(idx+1)%nodes_length]['y_direction'] > 0:
+                        fail_code = 2202
+                        is_match_pattern = True
+                        going_down = True
+                else:
+                    fail_code = 2203
+                    is_match_pattern = True
+                    going_down = True
 
             # for < sharp. "女" 的左半邊。
             if format_dict_array[(idx+1)%nodes_length]['y_direction'] > 0:
@@ -1618,3 +1679,59 @@ class Rule():
 
 
         return going_down, fail_code
+
+    # purpose: check for Rainbow base rule.
+    # return:
+    #   True: match, path going right.
+    #   False: not match, path going left.
+    # PS: directly use not XD, cause "五" uni4E94 fail.
+    def going_rainbow_up(self, format_dict_array, idx):
+        going_up = False
+        is_match_pattern = False
+        fail_code = 0
+
+        nodes_length = len(format_dict_array)
+
+        '''
+        if not is_match_pattern:
+            # | sharp.
+            if format_dict_array[(idx+0)%nodes_length]['x_equal_fuzzy']:
+                if format_dict_array[(idx+0)%nodes_length]['y_direction'] > 0:
+                    fail_code = 2201
+                    is_match_pattern = True
+                    going_up = True
+
+        if not is_match_pattern:
+            # - sharp.
+            if format_dict_array[(idx+0)%nodes_length]['y_equal_fuzzy']:
+                if format_dict_array[(idx+1)%nodes_length]['y_direction'] < 0:
+                    fail_code = 2202
+                    is_match_pattern = True
+                    going_up = True
+        '''
+
+        if not is_match_pattern:
+            # \ sharp. go up.
+            # / sharp. go down.
+            if format_dict_array[(idx+0)%nodes_length]['y_direction'] > 0:
+                # 第一條，雖然向上走，但接近水平線。
+                # ex: uni9787 的革，會誤判。
+                if format_dict_array[(idx+0)%nodes_length]['y_equal_fuzzy']:
+                    # - sharp.
+                    if format_dict_array[(idx+1)%nodes_length]['y_direction'] < 0:
+                        fail_code = 2202
+                        is_match_pattern = True
+                        going_up = True
+                else:
+                    fail_code = 2203
+                    is_match_pattern = True
+                    going_up = True
+
+            # for > sharp. 
+            if format_dict_array[(idx+1)%nodes_length]['y_direction'] < 0:
+                fail_code = 2204
+                is_match_pattern = True
+                going_up = True
+
+
+        return going_up, fail_code

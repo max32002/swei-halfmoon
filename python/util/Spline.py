@@ -148,10 +148,12 @@ class Spline():
                     is_modified = True
  
                 if clockwise:
+                    trace_result = False
                     trace_result = self.trace_black_block(stroke_dict, key, unicode_int, bmp_image, y_offset)
                     if trace_result:
                         is_modified = True
                 else:
+                    trace_result = False
                     trace_result = self.trace_white_block(stroke_dict, key, unicode_int, bmp_image, y_offset)
                     if trace_result:
                         is_modified = True
@@ -360,6 +362,14 @@ class Spline():
         #DISABLE_ALL_RULE = True    # debug specific rule.
 
         # start process here.
+        #print("key:", key)
+        # for debug target key.
+        debug_key = -1
+        # put debug key here.
+        debug_key = -1
+        if debug_key > -1:
+            if key != debug_key:
+                return is_modified, inside_stroke_dict, skip_coordinate, skip_coordinate_rule
         spline_dict = stroke_dict[key]
 
         from . import Rule1_Row
@@ -402,28 +412,6 @@ class Spline():
         #print("Rule#2 redo_count:", redo_count)
         ru2 = None
 
-        # start to travel nodes for [RULE #1]
-        # 
-        if DEBUG_CRASH_RULE:
-            print("start Rule # 1...")
-        idx=-1
-        redo_travel=False   # Disable
-        redo_travel=True    # Enable
-        if DISABLE_ALL_RULE:
-            redo_travel=False
-            pass
-        redo_count=0
-        while redo_travel:
-            redo_count+=1
-            if redo_count==100:
-                print("occure bug at rule#1!")
-            redo_travel,idx, inside_stroke_dict,skip_coordinate,skip_coordinate_rule=ru1.apply(spline_dict, idx, inside_stroke_dict,skip_coordinate,skip_coordinate_rule)
-            if redo_travel:
-                is_modified = True
-        #print("Rule#1 is_modified:", is_modified)
-        #print("Rule#1 redo_count:", redo_count)
-        ru1 = None
-
         # start to travel nodes for [RULE #3]
         # 
         if DEBUG_CRASH_RULE:
@@ -445,6 +433,28 @@ class Spline():
         #print("Rule#3 is_modified:", is_modified)
         #print("Rule#3 redo_count:", redo_count)
         ru3 = None
+
+        # start to travel nodes for [RULE #1]
+        # 
+        if DEBUG_CRASH_RULE:
+            print("start Rule # 1...")
+        idx=-1
+        redo_travel=False   # Disable
+        redo_travel=True    # Enable
+        if DISABLE_ALL_RULE:
+            redo_travel=False
+            pass
+        redo_count=0
+        while redo_travel:
+            redo_count+=1
+            if redo_count==100:
+                print("occure bug at rule#1!")
+            redo_travel,idx, inside_stroke_dict,skip_coordinate,skip_coordinate_rule=ru1.apply(spline_dict, idx, inside_stroke_dict,skip_coordinate,skip_coordinate_rule)
+            if redo_travel:
+                is_modified = True
+        #print("Rule#1 is_modified:", is_modified)
+        #print("Rule#1 redo_count:", redo_count)
+        ru1 = None
 
         return is_modified, inside_stroke_dict, skip_coordinate, skip_coordinate_rule
 
@@ -480,40 +490,9 @@ class Spline():
         ru13.assign_bmp(bmp_image, y_offset=y_offset)
         ru13.assign_unicode(unicode_int)
 
-        from . import Rule16_Curve_Tail
-        ru16=Rule16_Curve_Tail.Rule()
-        ru16.assign_config(self.config)
-        ru16.assign_bmp(bmp_image, y_offset=y_offset)
-        ru16.assign_unicode(unicode_int)
-
-        # PS: must apply this rule after all.
-        from . import Rule21_Fix_Arrow
-        ru21=Rule21_Fix_Arrow.Rule()
-        ru21.assign_config(self.config)
-        ru21.assign_bmp(bmp_image, y_offset=y_offset)
-        ru21.assign_unicode(unicode_int)
 
         # start process here.
         spline_dict = stroke_dict[key]
-
-        # start to travel nodes for [RULE #16]
-        # 已灣，且向後翹的尾巴。
-        # PS: must before Rule#1+#2+3!
-        # PS: 這個己改用 Rule#2 來解決。
-        # PS: 目前不需要使用到  Rule#16.
-        if DEBUG_CRASH_RULE:
-            print("start Rule # 16...")
-        idx=-1
-        redo_travel=False   # Disable
-        #redo_travel=True    # Enable
-        if DISABLE_ALL_RULE:
-            redo_travel=False
-            pass
-        while redo_travel:
-            redo_travel,idx, inside_stroke_dict,skip_coordinate=ru16.apply(spline_dict, idx, inside_stroke_dict, skip_coordinate)
-            if redo_travel:
-                is_modified = True
-        ru16 = None
 
 
         # start to travel nodes for [RULE #12]
@@ -532,7 +511,7 @@ class Spline():
             redo_count+=1
             if redo_count==100:
                 print("occure bug at rule#12!")
-            redo_travel,idx, inside_stroke_dict,skip_coordinate=ru12.apply(spline_dict, idx, inside_stroke_dict, skip_coordinate)
+            redo_travel,idx, inside_stroke_dict,skip_coordinate,skip_coordinate_rule=ru12.apply(spline_dict, idx, inside_stroke_dict, skip_coordinate,skip_coordinate_rule)
             if redo_travel:
                 is_modified = True
         ru12 = None
@@ -552,7 +531,7 @@ class Spline():
             redo_count+=1
             if redo_count==100:
                 print("occure bug at rule#13!")
-            redo_travel,idx, inside_stroke_dict,skip_coordinate=ru13.apply(spline_dict, idx, inside_stroke_dict, skip_coordinate)
+            redo_travel,idx, inside_stroke_dict,skip_coordinate,skip_coordinate_rule=ru13.apply(spline_dict, idx, inside_stroke_dict, skip_coordinate,skip_coordinate_rule)
             if redo_travel:
                 is_modified = True
         ru13 = None
@@ -608,27 +587,49 @@ class Spline():
             if base_is_modified:
                 is_modified = True
 
-        if self.config.PROCESS_MODE in ["GOTHIC"]:
-            # start to travel nodes for [RULE #21]
-            # 
-            if DEBUG_CRASH_RULE:
-                print("start Rule # 21...")
-            idx=-1
-            redo_travel=False   # Disable
-            redo_travel=True    # Enable
-            if DISABLE_ALL_RULE:
-                redo_travel=False
-                pass
-            redo_count=0
-            while redo_travel:
-                redo_count+=1
-                if redo_count==100:
-                    print("occure bug at rule#21!")
-                redo_travel,idx, inside_stroke_dict,skip_coordinate=ru21.apply(spline_dict, idx, inside_stroke_dict,skip_coordinate)
-                if redo_travel:
-                    is_modified = True
-            ru21 = None
+        return is_modified, inside_stroke_dict, skip_coordinate, skip_coordinate_rule
 
+
+    # run after all filter ap
+    def trace_postprocess(self, stroke_dict, key, unicode_int, bmp_image, y_offset, inside_stroke_dict, skip_coordinate, skip_coordinate_rule):
+        is_modified = False
+
+        DEBUG_CRASH_RULE = False    # online
+        #DEBUG_CRASH_RULE = True    # debug
+
+        DISABLE_ALL_RULE = False    # online
+        #DISABLE_ALL_RULE = True    # debug specific rule.
+
+        # PS: must apply this rule after all.
+        # PS: 這是沒什麼用的 workaround 解法，應該有更好解法。
+        from . import Rule21_Fix_Arrow
+        ru21=Rule21_Fix_Arrow.Rule()
+        ru21.assign_config(self.config)
+        ru21.assign_bmp(bmp_image, y_offset=y_offset)
+        ru21.assign_unicode(unicode_int)
+
+        # start process here.
+        spline_dict = stroke_dict[key]
+
+        # start to travel nodes for [RULE #21]
+        # 
+        if DEBUG_CRASH_RULE:
+            print("start Rule # 21...")
+        idx=-1
+        redo_travel=False   # Disable
+        redo_travel=True    # Enable
+        if DISABLE_ALL_RULE:
+            redo_travel=False
+            pass
+        redo_count=0
+        while redo_travel:
+            redo_count+=1
+            if redo_count==100:
+                print("occure bug at rule#21!")
+            redo_travel,idx, inside_stroke_dict,skip_coordinate=ru21.apply(spline_dict, idx, inside_stroke_dict,skip_coordinate)
+            if redo_travel:
+                is_modified = True
+        ru21 = None
 
         return is_modified, inside_stroke_dict, skip_coordinate, skip_coordinate_rule
 
@@ -666,18 +667,20 @@ class Spline():
         #print("key:", key, 'code:', spline_dict['dots'][0])
         #if not key == 1:
             #return spline_dict
+
+        # PS: trace_basic() is included in trace_common()
         is_common_enable = True
 
-        if self.config.PROCESS_MODE in ["B2","B4","XD","HALFMOON"]:
+        if self.config.PROCESS_MODE in ["B2","B4","XD","RAINBOW","HALFMOON","NUT8","3TSANS"]:
             is_common_enable = False
 
         if is_common_enable:
             is_modified, inside_stroke_dict, skip_coordinate, skip_coordinate_rule = self.trace_common(stroke_dict, key, unicode_int, bmp_image, y_offset, inside_stroke_dict, skip_coordinate, skip_coordinate_rule)
-
-        if self.config.PROCESS_MODE in ["XD","HALFMOON"]:
-            base_is_modified, inside_stroke_dict, skip_coordinate, skip_coordinate_rule = self.trace_basic(stroke_dict, key, unicode_int, bmp_image, y_offset, inside_stroke_dict, skip_coordinate, skip_coordinate_rule)
-            if base_is_modified:
-                is_modified = True
+        else:
+            if self.config.PROCESS_MODE in ["XD","RAINBOW","HALFMOON","NUT8","3TSANS"]:
+                base_is_modified, inside_stroke_dict, skip_coordinate, skip_coordinate_rule = self.trace_basic(stroke_dict, key, unicode_int, bmp_image, y_offset, inside_stroke_dict, skip_coordinate, skip_coordinate_rule)
+                if base_is_modified:
+                    is_modified = True
 
         # start to travel nodes for [RULE #11]
         # check outside curve
@@ -685,7 +688,7 @@ class Spline():
         idx=-1
         redo_travel=False   # Disable
         redo_travel=True    # Enable
-        if self.config.PROCESS_MODE in ["B2","B4"]:
+        if self.config.PROCESS_MODE in ["B2","B4","NUT8","3TSANS"]:
             redo_travel = False
 
         if DISABLE_ALL_RULE:
@@ -707,7 +710,14 @@ class Spline():
         #print("start Rule # 99...")
         idx=-1
         redo_travel=False   # Disable
+
+        # [TODO]:攩，的黑的點，因為 Rule#12,13 與 Rule#99 會交互作作，暫時先註解，等有空再開啟Rule#99
+        #if self.config.PROCESS_MODE in ["B2","B4","NUT8"]:
         redo_travel=True    # Enable
+
+        if self.config.PROCESS_MODE in ["3TSANS"]:
+            redo_travel = False
+
         if DISABLE_ALL_RULE:
             redo_travel=False
             pass
@@ -760,16 +770,23 @@ class Spline():
         # ==================================================
         # transform code block
         # ==================================================
+        # PS: trace_basic() is included in trace_common()
         is_common_enable = True
 
-        if self.config.PROCESS_MODE in ["B2","B4","XD","HALFMOON"]:
+        if self.config.PROCESS_MODE in ["B2","B4","XD","RAINBOW","HALFMOON","NUT8","3TSANS"]:
             is_common_enable = False
 
         if is_common_enable:
             is_modified, inside_stroke_dict, skip_coordinate, skip_coordinate_rule = self.trace_common(stroke_dict, key, unicode_int, bmp_image, y_offset, inside_stroke_dict, skip_coordinate, skip_coordinate_rule)
+        else:
+            if self.config.PROCESS_MODE in ["XD","RAINBOW","HALFMOON","NUT8","3TSANS"]:
+                base_is_modified, inside_stroke_dict, skip_coordinate, skip_coordinate_rule = self.trace_basic(stroke_dict, key, unicode_int, bmp_image, y_offset, inside_stroke_dict, skip_coordinate, skip_coordinate_rule)
+                if base_is_modified:
+                    is_modified = True
 
-        if self.config.PROCESS_MODE in ["XD","HALFMOON"]:
-            base_is_modified, inside_stroke_dict, skip_coordinate, skip_coordinate_rule = self.trace_basic(stroke_dict, key, unicode_int, bmp_image, y_offset, inside_stroke_dict, skip_coordinate, skip_coordinate_rule)
+        is_postprocess_enable = True
+        if is_postprocess_enable:
+            base_is_modified, inside_stroke_dict, skip_coordinate, skip_coordinate_rule = self.trace_postprocess(stroke_dict, key, unicode_int, bmp_image, y_offset, inside_stroke_dict, skip_coordinate, skip_coordinate_rule)
             if base_is_modified:
                 is_modified = True
 
@@ -780,7 +797,7 @@ class Spline():
         idx=-1
         redo_travel=False   # Disable
         redo_travel=True    # Enable
-        if self.config.PROCESS_MODE in ["B2","B4"]:
+        if self.config.PROCESS_MODE in ["B2","B4","NUT8","3TSANS"]:
             redo_travel = False
 
         if DISABLE_ALL_RULE:
@@ -805,7 +822,14 @@ class Spline():
         #print("start Rule # 99...")
         idx=-1
         redo_travel=False   # Disable
+        
+        # [TODO]:攩，的黑的點，因為 Rule#12,13 與 Rule#99 會交互作作，暫時先註解，等有空再開啟Rule#99
+        #if self.config.PROCESS_MODE in ["B2","B4","NUT8"]:
         redo_travel=True    # Enable
+        
+        if self.config.PROCESS_MODE in ["3TSANS"]:
+            redo_travel = False
+
         if DISABLE_ALL_RULE:
             redo_travel=False
             pass
@@ -813,7 +837,7 @@ class Spline():
         while redo_travel:
             redo_count+=1
             if redo_count==200:
-                print("occure bug at rule#9!")
+                print("occure bug at rule#99!")
 
             black_mode = True
             redo_travel,idx, inside_stroke_dict,skip_coordinate, skip_coordinate_rule=ru99.apply(spline_dict, idx, inside_stroke_dict, skip_coordinate, skip_coordinate_rule, black_mode)
