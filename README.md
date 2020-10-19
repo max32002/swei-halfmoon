@@ -54,8 +54,8 @@
 ```
 @font-face {
   font-family: SweiHalfMoonCJKtc-Regular;
-  src: urlhttps://cdn.jsdelivr.net/gh/max32002/swei-halfmoon@2.0/WebFont/CJK%20TC/SweiHalfMoonCJKtc-Regular.woff2) format("woff2")
-  , url(https://cdn.jsdelivr.net/gh/max32002/swei-halfmoon@2.0/WebFont/CJK%20TC/SweiHalfMoonCJKtc-Regular.woff) format("woff");
+  src: urlhttps://cdn.jsdelivr.net/gh/max32002/swei-halfmoon@2.125/WebFont/CJK%20TC/SweiHalfMoonCJKtc-Regular.woff2) format("woff2")
+  , url(https://cdn.jsdelivr.net/gh/max32002/swei-halfmoon@2.125/WebFont/CJK%20TC/SweiHalfMoonCJKtc-Regular.woff) format("woff");
 }
 ```
 
