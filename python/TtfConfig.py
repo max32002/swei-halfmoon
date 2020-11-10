@@ -48,7 +48,9 @@ class TtfConfig():
     # 1 to 3
     UNICODE_FIELD = 2
 
-    BMP_PATH = '/Users/chunyuyao/Documents/noto/bmp'
+    #BMP_PATH = '/Users/chunyuyao/Documents/noto/bmp'
+    # please assign your bmp_path by each case, don't use default path.
+    BMP_PATH = None
 
 
     def apply_weight_setting(self):
